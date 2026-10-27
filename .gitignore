@@ -1,0 +1,19 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Temporary / Lock files
+.~lock.*
+*.tmp
+
+# IDEs & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
