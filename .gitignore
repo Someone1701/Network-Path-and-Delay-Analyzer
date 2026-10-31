@@ -3,6 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Node & Dependencies
+node_modules/
+package-lock.json
+package.json
+capture.js
+take_screenshots.js
+
 # Virtual environments
 venv/
 env/
