@@ -110,6 +110,15 @@ function switchTab(tabId, el) {
   el.classList.add('active');
   const target = document.getElementById(tabId);
   if (target) target.classList.add('active');
+
+  if (tabId === 'tab-real-world') {
+    if (!realMap) {
+      initRealMap();
+    }
+    setTimeout(() => { if (realMap) realMap.invalidateSize(); }, 50);
+    setTimeout(() => { if (realMap) realMap.invalidateSize(); }, 150);
+    setTimeout(() => { if (realMap) realMap.invalidateSize(); }, 350);
+  }
 }
 
 // Fetch & Run Tests
@@ -986,10 +995,452 @@ document.addEventListener('DOMContentLoaded', () => {
   runAnalyzerReport();
   highlightPath('P1');
   loadBenchmarkTable();
+  loadRealBenchmarksTable();
 
   // Start Live Prototype Simulation Loop
   logEvent("Live Working Prototype initialized. Mode: DAPS Adaptive Path Selection.", "info");
   logEvent("Topology: 7 Nodes, 8 Links, Flow: S -> D (2 Mbps foreground).", "info");
+
+  const realTargetInput = document.getElementById('real-target');
+  if (realTargetInput) {
+    realTargetInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') triggerRealTrace();
+    });
+  }
   requestAnimationFrame(prototypeLoop);
 });
 
+
+
+// =========================================================================
+// REAL-LIFE IMPLEMENTATION & LIVE TRACEROUTE CONTROLLER
+// =========================================================================
+
+function setRealTarget(t) {
+  const inp = document.getElementById('real-target');
+  if (inp) inp.value = t;
+}
+
+function getLatencyGrade(avg) {
+  if (avg === null || avg === undefined) return '<span class="grade-pill grade-bad">TIMEOUT</span>';
+  if (avg < 30) return '<span class="grade-pill grade-good">FAST (&lt;30ms)</span>';
+  if (avg < 100) return '<span class="grade-pill grade-med">MODERATE</span>';
+  return '<span class="grade-pill grade-bad">HIGH (&gt;100ms)</span>';
+}
+
+
+
+// =========================================================================
+// LEAFLET WORLD MAP TELEMETRY FOR REAL IMPLEMENTATION
+// =========================================================================
+
+let realMap = null;
+let realMapMarkers = [];
+let realMapPolyline = null;
+
+function initRealMap() {
+  if (realMap) return;
+  const mapEl = document.getElementById('real-map');
+  if (!mapEl) return;
+
+  try {
+    realMap = L.map('real-map', {
+      zoomControl: true,
+      attributionControl: false
+    }).setView([20.0, 0.0], 2);
+
+    // Free, high-speed, no-API-key dark canvas layer (Esri NOC)
+    const darkCanvas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 16,
+      attribution: 'Tiles &copy; Esri World Dark Gray'
+    });
+
+    // Free OpenStreetMap layer fallback / toggle
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    darkCanvas.addTo(realMap);
+
+    // Layer switcher control (Dark Canvas / Street Map)
+    L.control.layers({
+      "🌙 Dark Map": darkCanvas,
+      "🗺️ Street Map": osm
+    }, null, { position: 'topright' }).addTo(realMap);
+
+    setTimeout(() => {
+      if (realMap) realMap.invalidateSize();
+    }, 100);
+    setTimeout(() => {
+      if (realMap) realMap.invalidateSize();
+    }, 300);
+  } catch (err) {
+    console.error('Error initializing Leaflet map:', err);
+  }
+}
+
+function resetRealMap() {
+  if (!realMap) {
+    initRealMap();
+    return;
+  }
+  realMapMarkers.forEach(m => realMap.removeLayer(m));
+  realMapMarkers = [];
+  if (realMapPolyline) {
+    realMap.removeLayer(realMapPolyline);
+    realMapPolyline = null;
+  }
+  const counter = document.getElementById('map-loc-counter');
+  if (counter) counter.textContent = '0 Locations Plotted';
+  realMap.setView([20.0, 0.0], 2);
+}
+
+function updateRealMapWithHops(hops) {
+  if (!realMap) initRealMap();
+  resetRealMap();
+
+  const latLngs = [];
+  let plottedCount = 0;
+
+  hops.forEach(h => {
+    if (h.geo && h.geo.lat !== undefined && h.geo.lon !== undefined && h.geo.lat !== null && h.geo.lon !== null) {
+      const lat = h.geo.lat;
+      const lon = h.geo.lon;
+      latLngs.push([lat, lon]);
+      plottedCount++;
+
+      const marker = L.circleMarker([lat, lon], {
+        radius: 7,
+        color: '#06b6d4',
+        weight: 2,
+        fillColor: '#38bdf8',
+        fillOpacity: 0.9
+      }).addTo(realMap);
+
+      const popupHtml = `
+        <div style="font-family: sans-serif; font-size: 0.85rem; line-height: 1.45; color: #fff;">
+          <strong style="color: #06b6d4; font-size: 0.95rem;">Hop ${h.hop}: ${h.ip}</strong><br>
+          📍 <strong>${h.geo.city || 'Unknown'}, ${h.geo.country || ''}</strong><br>
+          🏢 <span style="color: #94a3b8; font-size: 0.78rem;">${h.geo.isp || ''} (${h.geo.asn || ''})</span><br>
+          ⏱️ <strong style="color: #34d399;">Avg RTT: ${h.avg_rtt !== null ? h.avg_rtt + ' ms' : '*'}</strong>
+        </div>
+      `;
+      marker.bindPopup(popupHtml);
+      realMapMarkers.push(marker);
+    }
+  });
+
+  const counter = document.getElementById('map-loc-counter');
+  if (counter) counter.textContent = `${plottedCount} Locations Plotted`;
+
+  if (latLngs.length > 1) {
+    realMapPolyline = L.polyline(latLngs, {
+      color: '#06b6d4',
+      weight: 3,
+      opacity: 0.85,
+      dashArray: '6, 6'
+    }).addTo(realMap);
+
+    realMap.fitBounds(realMapPolyline.getBounds(), { padding: [40, 40], maxZoom: 8 });
+  } else if (latLngs.length === 1) {
+    realMap.setView(latLngs[0], 5);
+  }
+}
+
+
+async function triggerRealTrace() {
+  const targetInput = document.getElementById('real-target');
+  const maxHopsSelect = document.getElementById('real-max-hops');
+  const loader = document.getElementById('real-trace-loader');
+  const statsBanner = document.getElementById('real-stats-banner');
+  const bottleneckCard = document.getElementById('real-bottleneck-card');
+  const bottleneckDesc = document.getElementById('real-bottleneck-desc');
+  const tbody = document.getElementById('real-hops-tbody');
+  const btn = document.getElementById('btn-start-real-trace');
+
+  const target = targetInput ? targetInput.value.trim() : 'google.com';
+  const maxHops = maxHopsSelect ? maxHopsSelect.value : '20';
+
+  if (!target) {
+    alert('Please enter a target domain or IP.');
+    return;
+  }
+
+  if (loader) loader.classList.remove('hidden');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>Tracing...</span>';
+  }
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 2.5rem; color: var(--cyan);"><div class="spinner-circle" style="margin: 0 auto 0.75rem;"></div>Transmitting probe packets to ${target} (Max ${maxHops} hops) & resolving GPS coordinates...</td></tr>`;
+  }
+
+  try {
+    const res = await fetch(`/api/real-trace?target=${encodeURIComponent(target)}&max_hops=${maxHops}`);
+    const data = await res.json();
+
+    if (loader) loader.classList.add('hidden');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Trace Live Path';
+    }
+
+    if (data.error) {
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color: #f87171; padding: 2rem;">Error: ${data.error}</td></tr>`;
+      }
+      return;
+    }
+
+    // Populate stat cards
+    document.getElementById('real-stat-ip').textContent = data.target_ip || target;
+    document.getElementById('real-stat-target').textContent = data.target;
+    document.getElementById('real-stat-hops').textContent = `${data.total_hops} Hops`;
+    document.getElementById('real-stat-latency').textContent = `${data.end_to_end_latency} ms`;
+    document.getElementById('real-stat-jitter').textContent = `${data.avg_jitter} ms`;
+    if (statsBanner) statsBanner.classList.remove('hidden');
+
+    // Populate Leaflet Map
+    if (data.hops) {
+      updateRealMapWithHops(data.hops);
+    }
+
+    // Populate bottleneck card
+    if (bottleneckCard && bottleneckDesc) {
+      if (data.bottleneck_hop) {
+        const worst = data.hops.find(h => h.hop === data.bottleneck_hop);
+        const worstIp = worst ? worst.ip : 'Intermediate Router';
+        const worstLoc = (worst && worst.geo && worst.geo.city) ? ` in ${worst.geo.city}, ${worst.geo.country}` : '';
+        bottleneckDesc.innerHTML = `
+          <strong>Hop #${data.bottleneck_hop}:</strong> <code>${worstIp}</code>${worstLoc} introduced the largest incremental delay jump of 
+          <strong style="color: #fb923c;">+${data.max_delay_jump} ms</strong>. 
+          This empirical delay spike corresponds to physical transmission/queueing congestion on this transit link.
+        `;
+        bottleneckCard.classList.remove('hidden');
+      } else {
+        bottleneckDesc.textContent = 'All intermediate transit hops responded with uniform, low incremental latency jumps.';
+        bottleneckCard.classList.remove('hidden');
+      }
+    }
+
+    // Populate table rows
+    if (tbody && data.hops) {
+      if (data.hops.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 2rem; color: var(--text-dim);">No responding hops returned.</td></tr>`;
+        return;
+      }
+
+      let rowsHtml = '';
+      data.hops.forEach(h => {
+        const isBottleneck = (h.hop === data.bottleneck_hop);
+        const rowStyle = isBottleneck ? 'style="background: rgba(234, 88, 12, 0.12); border-left: 3px solid #f97316;"' : '';
+        const delayJumpText = h.delay_jump !== null ? `+${h.delay_jump} ms` : '*';
+        const lossText = h.loss_pct > 0 ? `<span style="color:#f87171; font-weight:700;">${h.loss_pct}%</span>` : '<span style="color:#34d399;">0%</span>';
+
+        const locText = (h.geo && (h.geo.city || h.geo.country))
+          ? `📍 <strong>${[h.geo.city, h.geo.country].filter(Boolean).join(', ')}</strong>`
+          : '<span style="color: var(--text-dim);">Private / Local Segment</span>';
+
+        const ispText = (h.geo && (h.geo.isp || h.geo.asn))
+          ? `<span style="font-size: 0.8rem; color: var(--text-muted);">${h.geo.isp || h.geo.asn}</span>`
+          : `<span style="font-size: 0.8rem; color: var(--text-dim);">${h.hostname || '*'}</span>`;
+
+        rowsHtml += `
+          <tr ${rowStyle}>
+            <td style="font-weight:700; color: ${isBottleneck ? '#fb923c' : 'var(--cyan)'};">
+              ${isBottleneck ? '⚡ ' : ''}${h.hop}
+            </td>
+            <td><code style="font-size:0.85rem;">${h.ip}</code></td>
+            <td style="font-size:0.84rem;">${locText}</td>
+            <td style="font-size:0.82rem; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${h.hostname}">${ispText}</td>
+            <td style="font-weight:700; color:#fff;">${h.avg_rtt !== null ? h.avg_rtt + ' ms' : '*'}</td>
+            <td style="color:#fb923c;">${h.jitter !== null ? h.jitter + ' ms' : '*'}</td>
+            <td>${lossText}</td>
+            <td style="color:${isBottleneck ? '#fb923c' : 'var(--text-muted)'}; font-weight:${isBottleneck ? '700' : '400'};">
+              ${delayJumpText}
+            </td>
+            <td>${getLatencyGrade(h.avg_rtt)}</td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = rowsHtml;
+    }
+  } catch (err) {
+    if (loader) loader.classList.add('hidden');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Trace Live Path';
+    }
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#f87171; padding: 2rem;">Network Error: ${err.message}</td></tr>`;
+    }
+  }
+}
+
+
+// =========================================================================
+// REAL-WORLD TELEMETRY BENCHMARK DATA LOADER
+// =========================================================================
+
+const DEFAULT_REAL_BENCHMARKS = [
+  {
+    target: "google.com",
+    name: "Google Search & Edge CDN",
+    ip: "142.251.126.100",
+    asn: "AS15169 Google LLC",
+    hops: 11,
+    min_rtt: 25.0,
+    avg_rtt: 26.0,
+    max_rtt: 27.0,
+    jitter: 2.0,
+    loss_pct: 0.0,
+    bottleneck_loc: "Gandhinagar Edge (Reliance Jio)",
+    bottleneck_spike: 95.7,
+    grade: "Fast (<30ms)"
+  },
+  {
+    target: "1.1.1.1",
+    name: "Cloudflare Anycast DNS",
+    ip: "1.1.1.1",
+    asn: "AS13335 Cloudflare, Inc.",
+    hops: 7,
+    min_rtt: 1.0,
+    avg_rtt: 1.3,
+    max_rtt: 2.0,
+    jitter: 1.0,
+    loss_pct: 0.0,
+    bottleneck_loc: "Aggregation Router (136.233.9.2)",
+    bottleneck_spike: 2.2,
+    grade: "Ultra-Fast (<5ms)"
+  },
+  {
+    target: "cloudflare.com",
+    name: "Cloudflare Global Web Edge",
+    ip: "104.16.132.229",
+    asn: "AS13335 Cloudflare, Inc.",
+    hops: 8,
+    min_rtt: 8.0,
+    avg_rtt: 9.4,
+    max_rtt: 11.0,
+    jitter: 3.0,
+    loss_pct: 0.0,
+    bottleneck_loc: "Chennai IXP Peering Exchange",
+    bottleneck_spike: 6.8,
+    grade: "Fast (<30ms)"
+  },
+  {
+    target: "8.8.8.8",
+    name: "Google Public DNS Anycast",
+    ip: "8.8.8.8",
+    asn: "AS15169 Google LLC",
+    hops: 9,
+    min_rtt: 24.0,
+    avg_rtt: 25.2,
+    max_rtt: 26.0,
+    jitter: 2.0,
+    loss_pct: 0.0,
+    bottleneck_loc: "Jio Core Inter-AS Gateway",
+    bottleneck_spike: 21.4,
+    grade: "Fast (<30ms)"
+  },
+  {
+    target: "microsoft.com",
+    name: "Microsoft Azure Edge",
+    ip: "20.112.52.29",
+    asn: "AS8075 Microsoft Corporation",
+    hops: 14,
+    min_rtt: 41.0,
+    avg_rtt: 44.5,
+    max_rtt: 49.0,
+    jitter: 8.0,
+    loss_pct: 0.0,
+    bottleneck_loc: "Mumbai Carrier Exchange",
+    bottleneck_spike: 32.1,
+    grade: "Moderate (<50ms)"
+  },
+  {
+    target: "github.com",
+    name: "GitHub (Fastly Anycast CDN)",
+    ip: "20.207.73.82",
+    asn: "AS8075 Microsoft Corporation",
+    hops: 13,
+    min_rtt: 38.0,
+    avg_rtt: 41.2,
+    max_rtt: 45.0,
+    jitter: 7.0,
+    loss_pct: 0.0,
+    bottleneck_loc: "Trans-Continental Subsea Gateway",
+    bottleneck_spike: 27.8,
+    grade: "Moderate (<50ms)"
+  }
+];
+
+function jumpToLiveTrace(target) {
+  if (window.launchDashboardFromAnywhere) {
+    window.launchDashboardFromAnywhere('tab-real-world');
+  } else {
+    const tabBtn = document.querySelector('.tab-btn[onclick*="tab-real-world"]');
+    if (tabBtn) {
+      switchTab('tab-real-world', tabBtn);
+    } else {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.getElementById('tab-real-world').classList.add('active');
+    }
+  }
+  setRealTarget(target);
+  setTimeout(() => {
+    triggerRealTrace();
+  }, 450);
+}
+
+async function loadRealBenchmarksTable() {
+  const tbody = document.getElementById('real-benchmark-tbody');
+  if (!tbody) return;
+
+  let data = DEFAULT_REAL_BENCHMARKS;
+  try {
+    const res = await fetch('/api/real-benchmarks');
+    if (res.ok) {
+      const json = await res.json();
+      if (json.real_benchmarks && json.real_benchmarks.length) {
+        data = json.real_benchmarks;
+      }
+    }
+  } catch (err) {
+    console.log('Using default real benchmarks data');
+  }
+
+  let html = '';
+  data.forEach(item => {
+    const gradeClass = item.avg_rtt < 10 ? 'grade-good' : (item.avg_rtt < 35 ? 'grade-good' : 'grade-med');
+    html += `
+      <tr>
+        <td>
+          <strong style="color: #fff; font-size: 0.95rem;">${item.name}</strong><br>
+          <code style="color: var(--cyan); font-size: 0.82rem;">${item.target}</code>
+        </td>
+        <td>
+          <code style="font-size: 0.85rem;">${item.ip}</code><br>
+          <span style="font-size: 0.78rem; color: var(--text-dim);">${item.asn}</span>
+        </td>
+        <td style="font-weight: 700; color: #fff;">${item.hops} hops</td>
+        <td>${item.min_rtt} ms</td>
+        <td style="font-weight: 700; color: var(--cyan);">${item.avg_rtt} ms</td>
+        <td>${item.max_rtt} ms</td>
+        <td style="color: #fb923c;">${item.jitter} ms</td>
+        <td style="font-size: 0.82rem; color: #e2e8f0;">${item.bottleneck_loc}</td>
+        <td style="color: #fb923c; font-weight: 700;">+${item.bottleneck_spike} ms</td>
+        <td><span class="grade-pill ${gradeClass}">${item.grade}</span></td>
+        <td>
+          <button class="preset-pill" onclick="jumpToLiveTrace('${item.target}')" style="background: rgba(6,182,212,0.18); border-color: var(--cyan); font-weight: 700;">
+            🚀 Trace Live
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+}
