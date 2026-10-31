@@ -1,0 +1,221 @@
+{
+  "project": "Network Path and Delay Analyzer",
+  "course": "BCSE308P Computer Networks Lab",
+  "authors": [
+    { "name": "Abhik Boxi", "reg_no": "24BCE0741" },
+    { "name": "Siddharth Saini", "reg_no": "24BKT0121" }
+  ],
+  "topology_metadata": {
+    "node_count": 7,
+    "link_count": 8,
+    "source_node": "S",
+    "destination_node": "D",
+    "queue_model": "M/M/1/K",
+    "buffer_capacity_k_packets": 64,
+    "nodal_processing_delay_ms": 0.1,
+    "data_packet_bytes": 1000,
+    "probe_packet_bytes": 64,
+    "ospf_reference_bandwidth_mbps": 100.0
+  },
+  "nodes": [
+    {
+      "id": "S",
+      "name": "Source Host / Ingress Router",
+      "type": "Ingress Router",
+      "coordinates": { "x": 60, "y": 200 },
+      "loopback_ip": "10.0.0.1/32",
+      "interfaces": [
+        { "name": "eth0", "ip": "10.0.1.1/30", "peer": "R1", "link_id": 0 },
+        { "name": "eth1", "ip": "10.0.2.1/30", "peer": "R3", "link_id": 1 }
+      ]
+    },
+    {
+      "id": "R1",
+      "name": "Upper Ingress Core Router",
+      "type": "Core Router",
+      "coordinates": { "x": 220, "y": 90 },
+      "loopback_ip": "10.0.0.2/32",
+      "interfaces": [
+        { "name": "eth0", "ip": "10.0.1.2/30", "peer": "S", "link_id": 0 },
+        { "name": "eth1", "ip": "10.0.3.1/30", "peer": "R2", "link_id": 2 },
+        { "name": "eth2", "ip": "10.0.7.1/30", "peer": "R5", "link_id": 6 }
+      ]
+    },
+    {
+      "id": "R2",
+      "name": "Upper Egress Core Router",
+      "type": "Core Router",
+      "coordinates": { "x": 480, "y": 90 },
+      "loopback_ip": "10.0.0.3/32",
+      "interfaces": [
+        { "name": "eth0", "ip": "10.0.3.2/30", "peer": "R1", "link_id": 2 },
+        { "name": "eth1", "ip": "10.0.4.1/30", "peer": "D", "link_id": 3 }
+      ]
+    },
+    {
+      "id": "R3",
+      "name": "Middle High-Capacity Router",
+      "type": "Core Router",
+      "coordinates": { "x": 280, "y": 200 },
+      "loopback_ip": "10.0.0.4/32",
+      "interfaces": [
+        { "name": "eth0", "ip": "10.0.2.2/30", "peer": "S", "link_id": 1 },
+        { "name": "eth1", "ip": "10.0.5.1/30", "peer": "R4", "link_id": 4 }
+      ]
+    },
+    {
+      "id": "R4",
+      "name": "Lower Egress Core Router",
+      "type": "Core Router",
+      "coordinates": { "x": 520, "y": 280 },
+      "loopback_ip": "10.0.0.5/32",
+      "interfaces": [
+        { "name": "eth0", "ip": "10.0.5.2/30", "peer": "R3", "link_id": 4 },
+        { "name": "eth1", "ip": "10.0.6.1/30", "peer": "D", "link_id": 5 },
+        { "name": "eth2", "ip": "10.0.8.2/30", "peer": "R5", "link_id": 7 }
+      ]
+    },
+    {
+      "id": "R5",
+      "name": "Lower Transit Intermediate Router",
+      "type": "Core Router",
+      "coordinates": { "x": 350, "y": 330 },
+      "loopback_ip": "10.0.0.6/32",
+      "interfaces": [
+        { "name": "eth0", "ip": "10.0.7.2/30", "peer": "R1", "link_id": 6 },
+        { "name": "eth1", "ip": "10.0.8.1/30", "peer": "R4", "link_id": 7 }
+      ]
+    },
+    {
+      "id": "D",
+      "name": "Destination Host / Egress Gateway",
+      "type": "Egress Gateway",
+      "coordinates": { "x": 680, "y": 200 },
+      "loopback_ip": "10.0.0.7/32",
+      "interfaces": [
+        { "name": "eth0", "ip": "10.0.4.2/30", "peer": "R2", "link_id": 3 },
+        { "name": "eth1", "ip": "10.0.6.2/30", "peer": "R4", "link_id": 5 }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "link_id": 0,
+      "source": "S",
+      "destination": "R1",
+      "subnet": "10.0.1.0/30",
+      "bandwidth_mbps": 20.0,
+      "propagation_delay_ms": 2.0,
+      "base_utilization": 0.30,
+      "ospf_cost": 5.0,
+      "buffer_k_packets": 64
+    },
+    {
+      "link_id": 1,
+      "source": "S",
+      "destination": "R3",
+      "subnet": "10.0.2.0/30",
+      "bandwidth_mbps": 20.0,
+      "propagation_delay_ms": 2.0,
+      "base_utilization": 0.30,
+      "ospf_cost": 5.0,
+      "buffer_k_packets": 64
+    },
+    {
+      "link_id": 2,
+      "source": "R1",
+      "destination": "R2",
+      "subnet": "10.0.3.0/30",
+      "bandwidth_mbps": 10.0,
+      "propagation_delay_ms": 6.0,
+      "base_utilization": 0.45,
+      "ospf_cost": 10.0,
+      "buffer_k_packets": 64,
+      "notes": "Target link for S4 Degradation Event (capacity reduced to 40% between t=100s-200s)"
+    },
+    {
+      "link_id": 3,
+      "source": "R2",
+      "destination": "D",
+      "subnet": "10.0.4.0/30",
+      "bandwidth_mbps": 20.0,
+      "propagation_delay_ms": 2.0,
+      "base_utilization": 0.30,
+      "ospf_cost": 5.0,
+      "buffer_k_packets": 64
+    },
+    {
+      "link_id": 4,
+      "source": "R3",
+      "destination": "R4",
+      "subnet": "10.0.5.0/30",
+      "bandwidth_mbps": 8.0,
+      "propagation_delay_ms": 8.0,
+      "base_utilization": 0.40,
+      "ospf_cost": 12.5,
+      "buffer_k_packets": 64
+    },
+    {
+      "link_id": 5,
+      "source": "R4",
+      "destination": "D",
+      "subnet": "10.0.6.0/30",
+      "bandwidth_mbps": 20.0,
+      "propagation_delay_ms": 2.0,
+      "base_utilization": 0.30,
+      "ospf_cost": 5.0,
+      "buffer_k_packets": 64
+    },
+    {
+      "link_id": 6,
+      "source": "R1",
+      "destination": "R5",
+      "subnet": "10.0.7.0/30",
+      "bandwidth_mbps": 10.0,
+      "propagation_delay_ms": 5.0,
+      "base_utilization": 0.35,
+      "ospf_cost": 10.0,
+      "buffer_k_packets": 64
+    },
+    {
+      "link_id": 7,
+      "source": "R5",
+      "destination": "R4",
+      "subnet": "10.0.8.0/30",
+      "bandwidth_mbps": 10.0,
+      "propagation_delay_ms": 5.0,
+      "base_utilization": 0.35,
+      "ospf_cost": 10.0,
+      "buffer_k_packets": 64
+    }
+  ],
+  "candidate_paths": [
+    {
+      "path_id": "P1",
+      "name": "Upper Baseline Shortest Path (OSPF Default)",
+      "hops": ["S", "R1", "R2", "D"],
+      "link_ids": [0, 2, 3],
+      "static_cost": 20.0,
+      "total_propagation_ms": 10.0,
+      "bottleneck_bandwidth_mbps": 10.0
+    },
+    {
+      "path_id": "P2",
+      "name": "Middle Bypass Path (DAPS Primary Evasion)",
+      "hops": ["S", "R3", "R4", "D"],
+      "link_ids": [1, 4, 5],
+      "static_cost": 22.5,
+      "total_propagation_ms": 12.0,
+      "bottleneck_bandwidth_mbps": 8.0
+    },
+    {
+      "path_id": "P3",
+      "name": "Lower Detour Path (Secondary Backup)",
+      "hops": ["S", "R1", "R5", "R4", "D"],
+      "link_ids": [0, 6, 7, 5],
+      "static_cost": 30.0,
+      "total_propagation_ms": 14.0,
+      "bottleneck_bandwidth_mbps": 10.0
+    }
+  ]
+}
