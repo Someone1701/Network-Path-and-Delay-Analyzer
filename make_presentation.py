@@ -54,6 +54,28 @@ def create_deck(filename="Network_Path_and_Delay_Analyzer_Presentation.pptx"):
         p_foot.font.size = Pt(10)
         p_foot.font.color.rgb = RGBColor(120, 120, 120)
 
+    def add_card(slide, x, y, w, h, title, items, color=LIGHT_BLUE):
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h))
+        card.fill.solid()
+        card.fill.fore_color.rgb = color
+        card.line.color.rgb = BORDER_COLOR
+        ctf = card.text_frame
+        ctf.word_wrap = True
+        ctf.margin_left = Inches(0.3)
+        ctf.margin_right = Inches(0.3)
+        ctf.margin_top = Inches(0.2)
+        cp0 = ctf.paragraphs[0]
+        cp0.text = title
+        cp0.font.size = Pt(15)
+        cp0.font.bold = True
+        cp0.font.color.rgb = DARK_BLUE
+        for it in items:
+            p = ctf.add_paragraph()
+            p.text = "• " + it
+            p.font.size = Pt(12)
+            p.font.color.rgb = DARK_GREY
+            p.space_before = Pt(6)
+
     # ==================== SLIDE 1: Title Slide ====================
     s1 = prs.slides.add_slide(blank_layout)
     bg1 = s1.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
@@ -78,7 +100,7 @@ def create_deck(filename="Network_Path_and_Delay_Analyzer_Presentation.pptx"):
     p1.space_before = Pt(10)
 
     p2 = tf.add_paragraph()
-    p2.text = "Per-Hop Delay Decomposition & Delay-Aware Adaptive Path Selection (DAPS)"
+    p2.text = "Per-Hop Delay Decomposition, Adaptive Path Selection (DAPS) & Live Internet Telemetry"
     p2.font.size = Pt(18)
     p2.font.color.rgb = RGBColor(254, 217, 142)
     p2.space_before = Pt(8)
@@ -98,13 +120,13 @@ def create_deck(filename="Network_Path_and_Delay_Analyzer_Presentation.pptx"):
     dp0.font.color.rgb = RGBColor(200, 220, 245)
 
     dp1 = dtf.add_paragraph()
-    dp1.text = "• Abhik Boxi (Reg. No: 24BCE0741) — Modeling, Analyzer & Simulation Engine"
+    dp1.text = "• Abhik Boxi (Reg. No: 24BCE0741) — Mathematical Modeling, Delay Decomposer, Simulation & Frontend"
     dp1.font.size = Pt(14)
     dp1.font.color.rgb = WHITE
     dp1.space_before = Pt(4)
 
     dp2 = dtf.add_paragraph()
-    dp2.text = "• Siddharth Saini (Reg. No: 24BKT0121) — Routing Algorithm (DAPS), Experiments & CLI"
+    dp2.text = "• Siddharth Saini (Reg. No: 24BKT0121) — Routing Algorithm (DAPS), 30-Run Statistical Tests & Live Traceroute"
     dp2.font.size = Pt(14)
     dp2.font.color.rgb = WHITE
     dp2.space_before = Pt(4)
@@ -112,28 +134,6 @@ def create_deck(filename="Network_Path_and_Delay_Analyzer_Presentation.pptx"):
     # ==================== SLIDE 2: Motivation & Problem ====================
     s2 = prs.slides.add_slide(blank_layout)
     add_header(s2, "Motivation & Problem Statement")
-
-    def add_card(slide, x, y, w, h, title, items, color=LIGHT_BLUE):
-        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h))
-        card.fill.solid()
-        card.fill.fore_color.rgb = color
-        card.line.color.rgb = BORDER_COLOR
-        ctf = card.text_frame
-        ctf.word_wrap = True
-        ctf.margin_left = Inches(0.3)
-        ctf.margin_right = Inches(0.3)
-        ctf.margin_top = Inches(0.2)
-        cp0 = ctf.paragraphs[0]
-        cp0.text = title
-        cp0.font.size = Pt(15)
-        cp0.font.bold = True
-        cp0.font.color.rgb = DARK_BLUE
-        for it in items:
-            p = ctf.add_paragraph()
-            p.text = "• " + it
-            p.font.size = Pt(12)
-            p.font.color.rgb = DARK_GREY
-            p.space_before = Pt(6)
 
     add_card(s2, 0.8, 1.45, 5.6, 5.3, "The Limitations of Current Routing", [
         "OSPF & Static Metrics: Link-state routing uses static metrics (cost = 100/bandwidth) computed once via Dijkstra.",
@@ -146,7 +146,8 @@ def create_deck(filename="Network_Path_and_Delay_Analyzer_Presentation.pptx"):
         "Component 1 — Hop-by-Hop Analyzer: Splits end-to-end latency into propagation, transmission, processing, and queueing parts to pinpoint bottleneck links.",
         "Component 2 — DAPS (Proposed Mechanism): Actively probes candidate paths every 2s, applies EWMA smoothing to delay/jitter/loss, and intelligently steers traffic.",
         "Anti-Flapping Protection: Employs 10% hysteresis margin and 2-cycle hold-down to stop oscillation.",
-        "Rigorous Statistical Validation: Evaluated over 30 paired seed runs across 4 realistic scenarios (S1-S4) with Student's t-test."
+        "Rigorous Statistical Validation: Evaluated over 30 paired seed runs across 4 realistic scenarios (S1-S4) with Student's t-test.",
+        "Live Internet Telemetry: Real-world Windows traceroute with sub-300ms batch Geo-IP and dark Leaflet world map."
     ], RGBColor(254, 243, 230))
 
     # ==================== SLIDE 3: System Topology & Architecture ====================
@@ -158,7 +159,6 @@ def create_deck(filename="Network_Path_and_Delay_Analyzer_Presentation.pptx"):
     if os.path.exists("figures/fig_architecture.png"):
         s3.shapes.add_picture("figures/fig_architecture.png", Inches(7.2), Inches(1.5), width=Inches(5.3))
 
-    # Descriptive text under pictures
     cap = s3.shapes.add_textbox(Inches(0.8), Inches(5.8), Inches(11.7), Inches(1.1))
     ctf = cap.text_frame
     cp = ctf.paragraphs[0]
@@ -232,7 +232,6 @@ def create_deck(filename="Network_Path_and_Delay_Analyzer_Presentation.pptx"):
     if os.path.exists("figures/fig_results.png"):
         s7.shapes.add_picture("figures/fig_results.png", Inches(6.8), Inches(1.4), width=Inches(5.8))
 
-    # Add results table on left
     table_shape = s7.shapes.add_table(5, 4, Inches(0.8), Inches(1.5), Inches(5.7), Inches(3.2))
     tbl = table_shape.table
     tbl.columns[0].width = Inches(1.2)
@@ -262,7 +261,6 @@ def create_deck(filename="Network_Path_and_Delay_Analyzer_Presentation.pptx"):
             cell.text = val
             cell.text_frame.paragraphs[0].font.size = Pt(10)
 
-    # Bullet summary below table
     rcard = s7.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(4.9), Inches(5.7), Inches(1.9))
     rcard.fill.solid()
     rcard.fill.fore_color.rgb = LIGHT_BLUE
@@ -327,34 +325,63 @@ def create_deck(filename="Network_Path_and_Delay_Analyzer_Presentation.pptx"):
         "Honest Evaluation: Real engineering requires knowing where an algorithm breaks."
     ], RGBColor(255, 235, 235))
 
-    # ==================== SLIDE 11: Team Division & Viva Guide ====================
+    # ==================== SLIDE 11: Real-Life Internet Implementation ====================
     s11 = prs.slides.add_slide(blank_layout)
-    add_header(s11, "Team Contributions & Viva Presentation Split")
+    add_header(s11, "Real-Life Implementation: Live Traceroute & World Map")
 
-    add_card(s11, 0.8, 1.45, 5.6, 5.3, "Abhik Boxi (24BCE0741)", [
-        "Modules Owned:\n• netmodel.py (Topology, M/M/1/K queue math, background generator)\n• analyzer.py (Hop-by-hop delay breakdown & bottleneck finder)\n• simulate.py (Discrete 1s simulation loop & metric collector)",
-        "Viva Focus Topics:\n• Derivation of M/M/1/K queueing formula & handling rho >= 1\n• 4 physical delay components (prop, tx, proc, queue)\n• Bottleneck hop percentage calculation\n• Background traffic generation (sine wave + burst model)"
-    ])
+    if os.path.exists("screenshots/07_real_life_world_map.png"):
+        s11.shapes.add_picture("screenshots/07_real_life_world_map.png", Inches(6.8), Inches(1.4), width=Inches(5.8))
 
-    add_card(s11, 6.9, 1.45, 5.6, 5.3, "Siddharth Saini (24BKT0121)", [
-        "Modules Owned:\n• routing.py (Baseline Dijkstra & DAPS class implementation)\n• experiments.py (30-run statistical framework, ablation, sensitivity)\n• figures.py & main.py (All plotting functions & CLI interface)",
-        "Viva Focus Topics:\n• DAPS active probing, EWMA smoothing (alpha = 0.3)\n• Anti-flapping logic: Hysteresis (10%) and Hold-down (N=2)\n• Student's t-test statistical validation\n• Honest failure modes: Stale probing & self-induced congestion"
+    add_card(s11, 0.8, 1.45, 5.7, 5.3, "Bridge From Theory to Physical Transit", [
+        "High-Speed Traceroute Subsystem:\n• Integrated Windows tracert engine with -w 400ms probe timers.\n• Bypasses sequential DNS timeouts.",
+        "Batch Geo-IP Resolution (< 300 ms):\n• Non-blocking parallel queries resolve carrier ISP, Autonomous System (ASN), and lat/long coordinates for up to 15 hops simultaneously.",
+        "Interactive Leaflet World Map:\n• Dark Gray Canvas basemap plotting physical transit lines and glowing hop markers.",
+        "Empirical Jitter Discovery:\n• Demonstrates how router queue backlogs in the physical Internet translate directly to empirical jitter (|ΔRTT|) and transit bottleneck spikes."
     ], RGBColor(240, 248, 255))
 
-    # ==================== SLIDE 12: Conclusion & Future Work ====================
+    # ==================== SLIDE 12: Real-World Telemetry Benchmarks ====================
     s12 = prs.slides.add_slide(blank_layout)
-    add_header(s12, "Conclusion & Future Work")
+    add_header(s12, "Real-World Telemetry Benchmarks Across Global Edges")
 
-    add_card(s12, 0.8, 1.45, 5.6, 5.3, "Summary of Work Done", [
-        "Delivered a complete, reproducible Network Path and Delay Analyzer in Python.",
+    if os.path.exists("screenshots/08_benchmark_evaluation_matrix.png"):
+        s12.shapes.add_picture("screenshots/08_benchmark_evaluation_matrix.png", Inches(6.8), Inches(1.4), width=Inches(5.8))
+
+    add_card(s12, 0.8, 1.45, 5.7, 5.3, "Evaluated Edge Endpoints", [
+        "1. Google Search & CDN (142.251.126.100, AS15169):\n   11 hops | Avg RTT: 26.0 ms | Bottleneck: Jio Gujarat Gateway (+95.7 ms spike).",
+        "2. Cloudflare Anycast (1.1.1.1, AS13335):\n   7 hops | Avg RTT: 1.3 ms | Ultra-low jitter (1.0 ms).",
+        "3. Cloudflare Web Edge (104.16.132.229):\n   8 hops | Avg RTT: 9.4 ms | Peering via Chennai IXP.",
+        "4. Microsoft Azure Edge (20.112.52.29, AS8075):\n   14 hops | Avg RTT: 44.5 ms | Carrier exchange in Mumbai.",
+        "5. GitHub Fastly Anycast (20.207.73.82):\n   13 hops | Avg RTT: 41.2 ms | Trans-continental optical subsea path."
+    ])
+
+    # ==================== SLIDE 13: Team Division & Viva Guide ====================
+    s13 = prs.slides.add_slide(blank_layout)
+    add_header(s13, "Team Contributions & Viva Presentation Split")
+
+    add_card(s13, 0.8, 1.45, 5.6, 5.3, "Abhik Boxi (24BCE0741)", [
+        "Modules Owned:\n• netmodel.py (Topology, M/M/1/K queue math, background generator)\n• analyzer.py (Hop-by-hop delay breakdown & bottleneck finder)\n• simulate.py (Discrete 1s simulation loop & metric collector)\n• web/react-app.js & web/style.css (React 18 Landing page & GSAP preloader)",
+        "Viva Focus Topics:\n• Derivation of M/M/1/K queueing formula & handling rho >= 1\n• 4 physical delay components (prop, tx, proc, queue)\n• Bottleneck hop percentage calculation\n• Interactive React 18 DAPS Congestion Evasion Sandbox"
+    ])
+
+    add_card(s13, 6.9, 1.45, 5.6, 5.3, "Siddharth Saini (24BKT0121)", [
+        "Modules Owned:\n• routing.py (Baseline Dijkstra & DAPS class implementation)\n• experiments.py (30-run statistical framework, ablation, sensitivity)\n• web_server.py (Live traceroute & batch Geo-IP integration)\n• Leaflet World Map integration & CLI interface",
+        "Viva Focus Topics:\n• DAPS active probing, EWMA smoothing (alpha = 0.3)\n• Anti-flapping logic: Hysteresis (10%) and Hold-down (N=2)\n• Student's t-test statistical validation\n• Real-world traceroute & multi-hop telemetry analysis"
+    ], RGBColor(240, 248, 255))
+
+    # ==================== SLIDE 14: Conclusion & Future Work ====================
+    s14 = prs.slides.add_slide(blank_layout)
+    add_header(s14, "Conclusion & Future Work")
+
+    add_card(s14, 0.8, 1.45, 5.6, 5.3, "Summary of Work Done", [
+        "Delivered a complete, reproducible Network Path and Delay Analyzer in Python and React 18.",
         "Demonstrated that DAPS reduces mean delay by 16.4%, 95th-percentile delay by 37.2%, and packet loss by 76.7% in high-load networks.",
         "Demonstrated 61.4% delay reduction during link capacity degradation events.",
         "Proved that hysteresis and hold-down effectively eliminate path flapping (reducing switches by 64%).",
-        "Conducted thorough sensitivity, grid, and failure-boundary analyses."
+        "Connected theoretical simulation to live networks with a sub-300ms real traceroute engine and Leaflet world map."
     ], RGBColor(235, 245, 235))
 
-    add_card(s12, 6.9, 1.45, 5.6, 5.3, "Limitations & Future Roadmap", [
-        "1. Real Testbed Implementation:\n   Deploy over Mininet with Open vSwitch (OVS) and Linux Traffic Control (tc netem).",
+    add_card(s14, 6.9, 1.45, 5.6, 5.3, "Limitations & Future Roadmap", [
+        "1. Programmable Data Plane (P4):\n   Offload DAPS probe generation and score calculation directly to P4-programmable ASIC switches.",
         "2. Multi-Flow & TCP Evaluation:\n   Assess interaction between DAPS path switches and TCP cubic congestion window / out-of-order packet handling.",
         "3. Distributed Multi-Host DAPS:\n   Explore game-theoretic coordinator or randomization to prevent multiple hosts from synchronizing and simultaneously stampeding onto the same uncongested path."
     ], RGBColor(245, 245, 245))
